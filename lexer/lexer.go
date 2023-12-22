@@ -1,6 +1,8 @@
 package lexer
 
-import "github.com/titivuk/go-interpreter/token"
+import (
+	"github.com/titivuk/go-interpreter/token"
+)
 
 // Lexer supports only ASCII
 // it allows us to use byte and access ch by index
@@ -17,17 +19,6 @@ func New(input string) *Lexer {
 	return l
 }
 
-func (l *Lexer) readChar() {
-	if l.readPosition >= len(l.input) {
-		l.ch = 0
-	} else {
-		l.ch = l.input[l.readPosition]
-	}
-
-	l.position = l.readPosition
-	l.readPosition += 1
-}
-
 func (l *Lexer) NextToken() token.Token {
 	var tok token.Token
 
@@ -35,9 +26,31 @@ func (l *Lexer) NextToken() token.Token {
 
 	switch l.ch {
 	case '=':
-		tok = token.Token{Type: token.ASSIGN, Literal: string(l.ch)}
+		if l.peekChar() == '=' {
+			tok = token.Token{Type: token.EQ, Literal: l.input[l.position : l.readPosition+1]}
+			l.readChar()
+		} else {
+			tok = token.Token{Type: token.ASSIGN, Literal: string(l.ch)}
+		}
 	case '+':
 		tok = token.Token{Type: token.PLUS, Literal: string(l.ch)}
+	case '-':
+		tok = token.Token{Type: token.MINUS, Literal: string(l.ch)}
+	case '!':
+		if l.peekChar() == '=' {
+			tok = token.Token{Type: token.NOT_EQ, Literal: l.input[l.position : l.readPosition+1]}
+			l.readChar()
+		} else {
+			tok = token.Token{Type: token.BANG, Literal: string(l.ch)}
+		}
+	case '*':
+		tok = token.Token{Type: token.ASTERISK, Literal: string(l.ch)}
+	case '/':
+		tok = token.Token{Type: token.SLASH, Literal: string(l.ch)}
+	case '<':
+		tok = token.Token{Type: token.LT, Literal: string(l.ch)}
+	case '>':
+		tok = token.Token{Type: token.GT, Literal: string(l.ch)}
 	case ',':
 		tok = token.Token{Type: token.COMMA, Literal: string(l.ch)}
 	case ';':
@@ -76,6 +89,25 @@ func (l *Lexer) skipWhitespace() {
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\n' || l.ch == '\r' {
 		l.readChar()
 	}
+}
+
+func (l *Lexer) readChar() {
+	if l.readPosition >= len(l.input) {
+		l.ch = 0
+	} else {
+		l.ch = l.input[l.readPosition]
+	}
+
+	l.position = l.readPosition
+	l.readPosition += 1
+}
+
+func (l *Lexer) peekChar() byte {
+	if l.readPosition >= len(l.input) {
+		return 0
+	}
+
+	return l.input[l.readPosition]
 }
 
 func (l *Lexer) readIdentifier() string {
