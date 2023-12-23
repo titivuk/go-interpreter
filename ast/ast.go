@@ -50,9 +50,7 @@ type LetStatement struct {
 	Value Expression  // expression that produces the value
 }
 
-func (ls *LetStatement) statementNode() {
-
-}
+func (ls *LetStatement) statementNode() {}
 
 func (ls *LetStatement) TokenLiteral() string {
 	return ls.Token.Literal
@@ -79,9 +77,7 @@ type ReturnStatement struct {
 	ReturnValue Expression  // expression that produces the value
 }
 
-func (rs *ReturnStatement) statementNode() {
-
-}
+func (rs *ReturnStatement) statementNode() {}
 
 func (rs *ReturnStatement) TokenLiteral() string {
 	return rs.Token.Literal
@@ -106,9 +102,7 @@ type ExpressionStatement struct {
 	Expression Expression
 }
 
-func (es *ExpressionStatement) statementNode() {
-
-}
+func (es *ExpressionStatement) statementNode() {}
 
 func (es *ExpressionStatement) TokenLiteral() string {
 	return es.Token.Literal
@@ -122,17 +116,32 @@ func (es *ExpressionStatement) String() string {
 	return ""
 }
 
+type IntegerLiteral struct {
+	Token token.Token
+	Value int64
+}
+
+func (il *IntegerLiteral) expressionNode() {}
+
+func (il *IntegerLiteral) TokenLiteral() string {
+	return il.Token.Literal
+}
+
+func (il *IntegerLiteral) String() string {
+	return il.Token.Literal
+}
+
 type Identifier struct {
 	Token token.Token // the token.IDENT token
 	Value string
 }
 
-func (i *Identifier) expressionNode() {
-
-}
+func (i *Identifier) expressionNode() {}
 
 func (i *Identifier) TokenLiteral() string {
 	return i.Token.Literal
 }
 
-func (i *Identifier) String() string { return i.Value }
+func (i *Identifier) String() string {
+	return i.Value
+}

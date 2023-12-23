@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/titivuk/go-interpreter/ast"
 	"github.com/titivuk/go-interpreter/lexer"
@@ -41,6 +42,7 @@ func New(l *lexer.Lexer) *Parser {
 
 	p.prefixParseFns = make(map[token.TokenType]prefixParseFn)
 	p.registerPrefixFn(token.IDENT, p.parseIdentifier)
+	p.registerPrefixFn(token.INT, p.parseIntegerLiteral)
 
 	// Read two tokens, so currToken and peekToken are both set
 	p.nextToken()
@@ -160,6 +162,17 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 
 func (p *Parser) parseIdentifier() ast.Expression {
 	return &ast.Identifier{Token: p.currToken, Value: p.currToken.Literal}
+}
+
+func (p *Parser) parseIntegerLiteral() ast.Expression {
+	value, err := strconv.ParseInt(p.currToken.Literal, 0, 64)
+	if err != nil {
+		msg := fmt.Sprintf("could not parse %q as integer", p.currToken.Literal)
+		p.errors = append(p.errors, msg)
+		return nil
+	}
+
+	return &ast.IntegerLiteral{Token: p.currToken, Value: value}
 }
 
 func (p *Parser) currTokenIs(t token.TokenType) bool {
