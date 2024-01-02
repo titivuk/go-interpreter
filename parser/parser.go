@@ -58,6 +58,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.MINUS, p.parsePrefixExpression)
 	p.registerPrefixFn(token.TRUE, p.parseBoolean)
 	p.registerPrefixFn(token.FALSE, p.parseBoolean)
+	p.registerPrefixFn(token.LPAREN, p.parseGroupedExpression)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfixFn(token.EQ, p.parseInfixExpression)
@@ -140,8 +141,6 @@ func (p *Parser) parseLetStatement() ast.Statement {
 		return nil
 	}
 
-	// TODO: parse expressions
-	// skip tokens until semicolon
 	for !p.currTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
@@ -154,8 +153,6 @@ func (p *Parser) parseReturnStatement() ast.Statement {
 
 	p.nextToken()
 
-	// TODO: parse expressions
-	// skip tokens until semicolon
 	for !p.currTokenIs(token.SEMICOLON) {
 		p.nextToken()
 	}
@@ -250,6 +247,20 @@ func (p *Parser) parseInfixExpression(left ast.Expression) ast.Expression {
 	expression.Right = p.parseExpression(precedence)
 
 	return expression
+}
+
+func (p *Parser) parseGroupedExpression() ast.Expression {
+	p.nextToken()
+
+	exp := p.parseExpression(LOWEST)
+
+	// p.parseExpression call above is going to stop when peekToken = RPAREN
+	// because p.peekPrecedence returns 0 for RPAREN, so for loop stops inside the parseExpression fn
+	if !p.expectPeek(token.RPAREN) {
+		return nil
+	}
+
+	return exp
 }
 
 func (p *Parser) currTokenIs(t token.TokenType) bool {
