@@ -2,6 +2,7 @@ package ast
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/titivuk/go-interpreter/token"
 )
@@ -243,6 +244,37 @@ func (bs *BlockStatement) String() string {
 	for _, s := range bs.Statements {
 		out.WriteString(s.String())
 	}
+
+	return out.String()
+}
+
+type FunctionLiteral struct {
+	Token      token.Token
+	Parameters []*Identifier
+	Body       *BlockStatement
+}
+
+func (fl *FunctionLiteral) expressionNode()      {}
+func (fl *FunctionLiteral) TokenLiteral() string { return fl.Token.Literal }
+func (fl *FunctionLiteral) String() string {
+	var out bytes.Buffer
+
+	out.WriteString(fl.Token.Literal)
+	out.WriteString(token.LPAREN)
+
+	parameters := []string{}
+	for _, p := range fl.Parameters {
+		parameters = append(parameters, p.String())
+	}
+	out.WriteString(strings.Join(parameters, ", "))
+
+	out.WriteString(token.RPAREN)
+	out.WriteString(" ")
+	out.WriteString(token.LBRACE)
+
+	out.WriteString(fl.Body.String())
+
+	out.WriteString(token.RBRACE)
 
 	return out.String()
 }
