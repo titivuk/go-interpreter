@@ -52,6 +52,21 @@ var keywords = map[string]TokenType{
 
 type TokenType string
 
+/*
+*
+Token representation of  "let x = 5 + 5;"
+[
+
+	LET,
+	IDENTIFIER("x"),
+	EQUAL_SIGN,
+	INTEGER(5),
+	PLUS_SIGN,
+	INTEGER(5),
+	SEMICOLON
+
+]
+*/
 type Token struct {
 	Type    TokenType
 	Literal string

@@ -7,11 +7,18 @@ import (
 	"github.com/titivuk/go-interpreter/token"
 )
 
+// Every node in AST has to implement the `Node` interface
 type Node interface {
 	TokenLiteral() string
 	String() string
 }
 
+// Some of the nodes implement the `Statement` and some the `Expression` interface.
+// These interfaces only contain dummy methods called statementNode and expressionNode respectively.
+
+// They are not strictly necessary but help us by guiding the Go compiler
+// and possibly causing it to throw errors
+// when we use a Statement where an Expression should’ve been used, and vice versa
 type Statement interface {
 	Node
 	statementNode()
@@ -22,7 +29,9 @@ type Expression interface {
 	expressionNode()
 }
 
-// root node of AST
+// Monkey program is a series of statements.
+// These statements are contained in the Program.Statements
+// which is just a slice of AST nodes that implement the Statement interface.
 type Program struct {
 	Statements []Statement
 }
@@ -34,7 +43,6 @@ func (p *Program) TokenLiteral() string {
 
 	return ""
 }
-
 func (p *Program) String() string {
 	var out bytes.Buffer
 
@@ -52,11 +60,9 @@ type LetStatement struct {
 }
 
 func (ls *LetStatement) statementNode() {}
-
 func (ls *LetStatement) TokenLiteral() string {
 	return ls.Token.Literal
 }
-
 func (ls *LetStatement) String() string {
 	var out bytes.Buffer
 
@@ -79,11 +85,9 @@ type ReturnStatement struct {
 }
 
 func (rs *ReturnStatement) statementNode() {}
-
 func (rs *ReturnStatement) TokenLiteral() string {
 	return rs.Token.Literal
 }
-
 func (rs *ReturnStatement) String() string {
 	var out bytes.Buffer
 
@@ -98,17 +102,16 @@ func (rs *ReturnStatement) String() string {
 	return out.String()
 }
 
+// representation of a statement that consists only of one expression, for example `x + 10;`, or "fnCall();"
 type ExpressionStatement struct {
 	Token      token.Token // the first token of the expression
 	Expression Expression
 }
 
 func (es *ExpressionStatement) statementNode() {}
-
 func (es *ExpressionStatement) TokenLiteral() string {
 	return es.Token.Literal
 }
-
 func (es *ExpressionStatement) String() string {
 	if es.Expression != nil {
 		return es.Expression.String()
@@ -123,11 +126,9 @@ type IntegerLiteral struct {
 }
 
 func (il *IntegerLiteral) expressionNode() {}
-
 func (il *IntegerLiteral) TokenLiteral() string {
 	return il.Token.Literal
 }
-
 func (il *IntegerLiteral) String() string {
 	return il.Token.Literal
 }
@@ -139,11 +140,9 @@ type PrefixExpression struct {
 }
 
 func (pe *PrefixExpression) expressionNode() {}
-
 func (pe *PrefixExpression) TokenLiteral() string {
 	return pe.Token.Literal
 }
-
 func (pe *PrefixExpression) String() string {
 	var out bytes.Buffer
 
@@ -163,11 +162,9 @@ type InfixExpression struct {
 }
 
 func (ie *InfixExpression) expressionNode() {}
-
 func (ie *InfixExpression) TokenLiteral() string {
 	return ie.Token.Literal
 }
-
 func (ie *InfixExpression) String() string {
 	var out bytes.Buffer
 
@@ -188,11 +185,9 @@ type Identifier struct {
 }
 
 func (i *Identifier) expressionNode() {}
-
 func (i *Identifier) TokenLiteral() string {
 	return i.Token.Literal
 }
-
 func (i *Identifier) String() string {
 	return i.Value
 }
