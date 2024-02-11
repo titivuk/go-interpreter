@@ -1,6 +1,8 @@
 package evaluator
 
 import (
+	"fmt"
+
 	"github.com/titivuk/go-interpreter/ast"
 	"github.com/titivuk/go-interpreter/object"
 	"github.com/titivuk/go-interpreter/token"
@@ -14,9 +16,11 @@ var (
 )
 
 func Eval(node ast.Node) object.Object {
+	fmt.Println(node.String())
+
 	switch node := node.(type) {
 	case *ast.Program:
-		return evalStatements(node.Statements)
+		return evalProgram(node.Statements)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression)
 	case *ast.IntegerLiteral:
@@ -33,17 +37,27 @@ func Eval(node ast.Node) object.Object {
 	case *ast.IfExpression:
 		return evalIfExpression(node)
 	case *ast.BlockStatement:
-		return evalStatements(node.Statements)
+		return evalBlockStatement(node.Statements)
+	case *ast.ReturnStatement:
+		return evalReturnStatement(node)
 	default:
 		return NULL
 	}
 }
 
-func evalStatements(statements []ast.Statement) object.Object {
+func evalProgram(statements []ast.Statement) object.Object {
 	var result object.Object
 
 	for _, st := range statements {
 		result = Eval(st)
+
+		// if we encounter return statements
+		// all statements after are unreachable
+		// so we stop evaluation
+		// and return Value of return statement
+		if returnValue, ok := result.(*object.ReturnValue); ok {
+			return returnValue.Value
+		}
 	}
 
 	return result
@@ -135,6 +149,39 @@ func evalIfExpression(ie *ast.IfExpression) object.Object {
 	}
 
 	return NULL
+}
+
+func evalReturnStatement(rs *ast.ReturnStatement) object.Object {
+	value := Eval(rs.ReturnValue)
+	return &object.ReturnValue{Value: value}
+}
+
+func evalBlockStatement(statements []ast.Statement) object.Object {
+	var result object.Object
+
+	for _, st := range statements {
+		result = Eval(st)
+
+		// Here we explicitly don’t unwrap the return value and only check the Type() of each evaluation result.
+		// If it’s object.RETURN_VALUE_OBJECT we simply return the *object.ReturnValue,
+		// without unwrapping its .Value, so it stops execution in a possible outer block statement
+		// and bubbles up to evalProgram, where it finally get’s unwrapped
+		// Example:
+		// if (10 > 1) {
+		// 	if (10 > 1) {
+		// 		return 10;
+		// 	}
+		// 	return 1;
+		// }
+		// we do not unwrap "return 10;" and pass it to outer block
+		// then, evalProgram checks if it's object.ReturnValue, unwraps it
+		// and stops the execution, i.e. "return 1" is not executed
+		if result != nil && result.Type() == object.RETURN_VALUE_OBJECT {
+			return result
+		}
+	}
+
+	return result
 }
 
 func nativeBoolToBooleanObject(input bool) *object.Boolean {
