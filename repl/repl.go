@@ -7,6 +7,7 @@ import (
 
 	"github.com/titivuk/go-interpreter/evaluator"
 	"github.com/titivuk/go-interpreter/lexer"
+	"github.com/titivuk/go-interpreter/object"
 	"github.com/titivuk/go-interpreter/parser"
 )
 
@@ -31,6 +32,7 @@ func Start(in io.Reader, out io.Writer) {
 	// Split functions are defined in this package for scanning a file into lines, bytes, UTF-8-encoded runes, and space-delimited words.
 	// The client may instead provide a custom split function.
 	scanner := bufio.NewScanner(in)
+	env := object.NewEnvironment()
 
 	for {
 		fmt.Fprintf(out, PROMT)
@@ -50,7 +52,7 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		evaluated := evaluator.Eval(program)
+		evaluated := evaluator.Eval(program, env)
 		if evaluated != nil {
 			io.WriteString(out, evaluated.Inspect())
 			io.WriteString(out, "\n")
