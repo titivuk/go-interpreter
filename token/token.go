@@ -8,6 +8,8 @@ const (
 	IDENT = "IDENT" // 	add, x, foo, ...
 	INT   = "INT"   // 12345
 
+	STRING = "STRING"
+
 	// operators
 	ASSIGN   = "="
 	PLUS     = "+"

@@ -12,6 +12,7 @@ type ObjectType string
 
 const (
 	INTEGER_OBJ      = "INTEGER"
+	STRING_OBJ       = "STRING"
 	BOOLEAN_OBJ      = "BOOLEAN"
 	NULL_OBJ         = "NULL"
 	RETURN_VALUE_OBJ = "RETURN_VALUE"
@@ -30,6 +31,13 @@ type Integer struct {
 
 func (i *Integer) Type() ObjectType { return INTEGER_OBJ }
 func (i *Integer) Inspect() string  { return fmt.Sprintf("%d", i.Value) }
+
+type String struct {
+	Value string
+}
+
+func (s *String) Type() ObjectType { return STRING_OBJ }
+func (s *String) Inspect() string  { return s.Value }
 
 type Boolean struct {
 	Value bool
@@ -58,9 +66,9 @@ func (e *Error) Type() ObjectType { return ERROR_OBJ }
 func (e *Error) Inspect() string  { return "ERROR: " + e.Message }
 
 func NewEnclosedEnvironment(outer *Environment) *Environment {
-    env := NewEnvironment()
-    env.outer = outer
-    return env
+	env := NewEnvironment()
+	env.outer = outer
+	return env
 }
 
 func NewEnvironment() *Environment {
@@ -75,10 +83,10 @@ type Environment struct {
 
 func (e *Environment) Get(name string) (Object, bool) {
 	obj, ok := e.store[name]
-    if !ok && e.outer != nil {
-        obj, ok = e.outer.Get(name)
-    }
-    return obj, ok
+	if !ok && e.outer != nil {
+		obj, ok = e.outer.Get(name)
+	}
+	return obj, ok
 }
 
 func (e *Environment) Set(name string, val Object) Object {
