@@ -23,6 +23,7 @@ const (
 	PRODUCT     // *
 	PREFIX      // -X or !X
 	CALL        // myFunction(X)
+	INDEX
 )
 
 var precedences = map[token.TokenType]int{
@@ -35,6 +36,7 @@ var precedences = map[token.TokenType]int{
 	token.ASTERISK: PRODUCT,
 	token.SLASH:    PRODUCT,
 	token.LPAREN:   CALL,
+	token.LBRACKET: INDEX,
 }
 
 type Parser struct {
@@ -63,6 +65,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.LPAREN, p.parseGroupedExpression)
 	p.registerPrefixFn(token.IF, p.parseIfExpression)
 	p.registerPrefixFn(token.FUNCTION, p.parseFunctionLiteral)
+	p.registerPrefixFn(token.LBRACKET, p.parseArrayLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfixFn(token.EQ, p.parseInfixExpression)
@@ -74,6 +77,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerInfixFn(token.ASTERISK, p.parseInfixExpression)
 	p.registerInfixFn(token.SLASH, p.parseInfixExpression)
 	p.registerInfixFn(token.LPAREN, p.parseCallExpression)
+	p.registerInfixFn(token.LBRACKET, p.parseIndexExpression)
 
 	// Read two tokens, so currToken and peekToken are both set
 	p.nextToken()
@@ -191,7 +195,6 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		return nil
 	}
 
-	// in case of infix expression it is left expression
 	expression := prefix()
 
 	for !p.peekTokenIs(token.SEMICOLON) && precedence < p.peekPrecedence() {
@@ -204,7 +207,7 @@ func (p *Parser) parseExpression(precedence int) ast.Expression {
 		p.nextToken()
 
 		// since we've checked that infix exist
-		// so currToken is infix operator
+		// so currToken is infix operator and expression is left expression
 		// and we call infix parse function
 		expression = infix(expression)
 	}
@@ -386,27 +389,64 @@ func (p *Parser) parseCallExpression(function ast.Expression) ast.Expression {
 
 func (p *Parser) parseCallArguments() []ast.Expression {
 	arguments := []ast.Expression{}
+	arguments = append(arguments, p.parseExpressionList(token.RPAREN)...)
 
-	if p.peekTokenIs(token.RPAREN) {
+	return arguments
+}
+
+func (p *Parser) parseArrayLiteral() ast.Expression {
+	arrayExpression := &ast.ArrayLiteral{Token: p.currToken}
+	arrayExpression.Elements = p.parseExpressionList(token.RBRACKET)
+
+	return arrayExpression
+}
+
+func (p *Parser) parseExpressionList(endToken token.TokenType) []ast.Expression {
+	expressions := []ast.Expression{}
+
+	if p.peekTokenIs(endToken) {
 		p.nextToken()
-		return arguments
+		return expressions
 	}
 
+	// cur token points to the start of the first element after this call
 	p.nextToken()
-	arguments = append(arguments, p.parseExpression(LOWEST))
 
+	// parse first element of the list
+	expressions = append(expressions, p.parseExpression(LOWEST))
+
+	// loop ends when curToken points to end pos of the last element in the list
 	for p.peekTokenIs(token.COMMA) {
-		p.nextToken()
-		p.nextToken()
+		// advance pos twice because p.parseExpression called above leaves p.currToken on last pos related to the expression
+		p.nextToken() // sets curToken to ','
+		p.nextToken() // sets curToken to first char of the next element
 
-		arguments = append(arguments, p.parseExpression(LOWEST))
+		expressions = append(expressions, p.parseExpression(LOWEST))
 	}
 
-	if !p.expectPeek(token.RPAREN) {
+	// since currToken points to the last pos of the last element in the array
+	// next token must be endToken
+	if !p.expectPeek(endToken) {
 		return nil
 	}
 
-	return arguments
+	return expressions
+}
+
+func (p *Parser) parseIndexExpression(left ast.Expression) ast.Expression {
+	indexExpression := &ast.IndexExpression{
+		Token: p.currToken,
+		Left:  left,
+	}
+
+	p.nextToken()
+	indexExpression.Index = p.parseExpression(LOWEST)
+
+	if !p.expectPeek(token.RBRACKET) {
+		return nil
+	}
+
+	return indexExpression
 }
 
 func (p *Parser) currTokenIs(t token.TokenType) bool {
