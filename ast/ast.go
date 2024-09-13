@@ -135,7 +135,7 @@ func (il *IntegerLiteral) String() string {
 
 type StringLiteral struct {
 	Token token.Token
-	Value string 
+	Value string
 }
 
 func (sl *StringLiteral) expressionNode() {}

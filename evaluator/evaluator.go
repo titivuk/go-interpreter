@@ -64,12 +64,15 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.Identifier:
 		// if we encounter identifier there should be associated value
 		// we need to replace identifier with that value
-		val, ok := env.Get(node.Value)
-		if !ok {
-			return newError("identifier not found: " + node.Value)
+		if val, ok := env.Get(node.Value); ok {
+			return val
 		}
 
-		return val
+		if builtin, ok := builtins[node.Value]; ok {
+			return builtin
+		}
+
+		return newError("identifier not found: " + node.Value)
 	case *ast.FunctionLiteral:
 		return &object.Function{Parameters: node.Parameters, Body: node.Body, Env: env}
 	case *ast.CallExpression:
@@ -278,17 +281,20 @@ func evalExpressions(
 }
 
 func applyFunction(fn object.Object, args []object.Object) object.Object {
-	function, ok := fn.(*object.Function)
-	if !ok {
+
+	switch function := fn.(type) {
+	case *object.Function:
+		extendedEnv := extendFunctionEnv(function, args)
+		evaluated := Eval(function.Body, extendedEnv)
+		// we only want to stop the evaluation of the last called function’s body.
+		// That's why we need unwrap it,
+		// so that evalBlockStatement won’t stop evaluating statements in "outer" functions
+		return unwrapReturnValue(evaluated)
+	case *object.Builtin:
+		return function.Fn(args...)
+	default:
 		return newError("not a function: %s", fn.Type())
 	}
-
-	extendedEnv := extendFunctionEnv(function, args)
-	evaluated := Eval(function.Body, extendedEnv)
-	// we only want to stop the evaluation of the last called function’s body.
-	// That's why we need unwrap it,
-	// so that evalBlockStatement won’t stop evaluating statements in "outer" functions
-	return unwrapReturnValue(evaluated)
 }
 
 func extendFunctionEnv(fn *object.Function, args []object.Object) *object.Environment {
