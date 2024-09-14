@@ -69,6 +69,8 @@ func (l *Lexer) NextToken() token.Token {
 		tok = token.Token{Type: token.LBRACKET, Literal: string(l.ch)}
 	case ']':
 		tok = token.Token{Type: token.RBRACKET, Literal: string(l.ch)}
+	case ':':
+		tok = token.Token{Type: token.COLON, Literal: string(l.ch)}
 	case 0:
 		tok.Literal = ""
 		tok.Type = token.EOF

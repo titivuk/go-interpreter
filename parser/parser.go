@@ -66,6 +66,7 @@ func New(l *lexer.Lexer) *Parser {
 	p.registerPrefixFn(token.IF, p.parseIfExpression)
 	p.registerPrefixFn(token.FUNCTION, p.parseFunctionLiteral)
 	p.registerPrefixFn(token.LBRACKET, p.parseArrayLiteral)
+	p.registerPrefixFn(token.LBRACE, p.parseHashLiteral)
 
 	p.infixParseFns = make(map[token.TokenType]infixParseFn)
 	p.registerInfixFn(token.EQ, p.parseInfixExpression)
@@ -399,6 +400,40 @@ func (p *Parser) parseArrayLiteral() ast.Expression {
 	arrayExpression.Elements = p.parseExpressionList(token.RBRACKET)
 
 	return arrayExpression
+}
+
+func (p *Parser) parseHashLiteral() ast.Expression {
+	// {<expression> : <expression>, <expression> : <expression>, ... }
+	hash := &ast.HashLiteral{Token: p.currToken}
+	hash.Pairs = make(map[ast.Expression]ast.Expression)
+
+	for !p.peekTokenIs(token.RBRACE) {
+		p.nextToken() // key expresssion pos
+
+		key := p.parseExpression(LOWEST)
+
+		if !p.expectPeek(token.COLON) { // :
+			return nil
+		}
+		p.nextToken() // ,
+
+		value := p.parseExpression(LOWEST) // value expression pos
+
+		hash.Pairs[key] = value
+
+		// order matters
+		// if it's not RBRACE then it must be COMMA
+		// if its RBRACE then do not advance position to let for condition stop the loop
+		if !p.peekTokenIs(token.RBRACE) && !p.expectPeek(token.COMMA) {
+			return nil
+		}
+	}
+
+	if !p.expectPeek(token.RBRACE) {
+		return nil
+	}
+
+	return hash
 }
 
 func (p *Parser) parseExpressionList(endToken token.TokenType) []ast.Expression {

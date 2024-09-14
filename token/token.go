@@ -42,6 +42,8 @@ const (
 
 	EQ     = "=="
 	NOT_EQ = "!="
+
+	COLON = ":"
 )
 
 var keywords = map[string]TokenType{
