@@ -21,10 +21,10 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 		return evalProgram(node.Statements, env)
 	case *ast.ExpressionStatement:
 		return Eval(node.Expression, env)
-	case *ast.IntegerLiteral:
-		return &object.Integer{Value: node.Value}
-	case *ast.StringLiteral:
-		return &object.String{Value: node.Value}
+	// case *ast.IntegerLiteral:
+	// 	return &object.Integer{Value: node.Value}
+	// case *ast.StringLiteral:
+		// return &object.String{Value: node.Value}
 	case *ast.Boolean:
 		return nativeBoolToBooleanObject(node.Value)
 	case *ast.PrefixExpression:
@@ -76,6 +76,17 @@ func Eval(node ast.Node, env *object.Environment) object.Object {
 	case *ast.FunctionLiteral:
 		return &object.Function{Parameters: node.Parameters, Body: node.Body, Env: env}
 	case *ast.CallExpression:
+		// if "quote" function is called arguments must not be evaluted
+		// so we return ast.Node wrapped into object.Quote
+		if node.Function.TokenLiteral() == "quote" {
+			// quote accepts only one argument
+			return quote(node.Arguments[0])
+		}
+
+		if node.Function.TokenLiteral() == "unquote" {
+
+		}
+
 		// eval always returns *object.Function
 		function := Eval(node.Function, env)
 		if isError(function) {

@@ -7,6 +7,8 @@ import (
 	"github.com/titivuk/go-interpreter/token"
 )
 
+const QWE = 5
+
 // Every node in AST has to implement the `Node` interface
 type Node interface {
 	TokenLiteral() string
