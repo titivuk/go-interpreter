@@ -22,11 +22,11 @@ func (ins Instructions) String() string {
 			continue
 		}
 
-		operands, string := ReadOperands(def, ins[i+1:])
+		operands, offset := ReadOperands(def, ins[i+1:])
 
 		fmt.Fprintf(&out, "%04d %s\n", i, ins.fmtInstruction(def, operands))
 
-		i += string + 1
+		i += offset + 1
 	}
 
 	return out.String()
@@ -52,6 +52,7 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 
 const (
 	OpConstant Opcode = iota
+	OpAdd
 )
 
 type Definition struct {
@@ -62,6 +63,7 @@ type Definition struct {
 
 var definitions = map[Opcode]*Definition{
 	OpConstant: {"OpConstant", []int{2}}, // single operand 2 bytes width => max value uint16
+	OpAdd:      {"OpAdd", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
