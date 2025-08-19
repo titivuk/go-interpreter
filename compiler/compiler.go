@@ -37,6 +37,27 @@ func (c *Compiler) Compile(node ast.Node) error {
 
 		c.emit(code.OpPop)
 	case *ast.InfixExpression:
+		// example how we can use 'OpGreaterThan' for both '>' and '<'
+		// buy just changing left and right in case of opposite operator
+		//
+		// looks uggly as fuck sine we have to add if and return early
+		// but for the sake of example how we can change code during compilation
+		if node.Operator == "<" {
+			err := c.Compile(node.Right)
+			if err != nil {
+				return err
+			}
+
+			err = c.Compile(node.Left)
+			if err != nil {
+				return err
+			}
+
+			c.emit(code.OpGreaterThan)
+
+			return nil
+		}
+
 		err := c.Compile(node.Left)
 		if err != nil {
 			return err
@@ -56,12 +77,40 @@ func (c *Compiler) Compile(node ast.Node) error {
 			c.emit(code.OpMul)
 		case "/":
 			c.emit(code.OpDiv)
+		case "!=":
+			c.emit(code.OpNotEqual)
+		case "==":
+			c.emit(code.OpEqual)
+		case ">":
+			c.emit(code.OpGreaterThan)
+		default:
+			return fmt.Errorf("unknown operator %s", node.Operator)
+		}
+	case *ast.PrefixExpression:
+		err := c.Compile(node.Right)
+		if err != nil {
+			return nil
+		}
+
+		switch node.Operator {
+		case "-":
+			c.emit(code.OpMinus)
+		case "!":
+			c.emit(code.OpBang)
 		default:
 			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
+	case *ast.Boolean:
+		boolean := &object.Boolean{Value: node.Value}
+
+		if boolean.Value {
+			c.emit(code.OpTrue)
+		} else {
+			c.emit(code.OpFalse)
+		}
 	}
 
 	return nil
