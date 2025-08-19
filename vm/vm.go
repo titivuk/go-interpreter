@@ -41,23 +41,50 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
-		case code.OpAdd:
-			right := vm.pop()
-			left := vm.pop()
-
-			switch {
-			case right.Type() != left.Type():
-				return fmt.Errorf("type mismatch: %s %s", left.Type(), right.Type())
-			case right.Type() == object.INTEGER_OBJ && left.Type() == object.INTEGER_OBJ:
-				leftValue := left.(*object.Integer).Value
-				rightValue := right.(*object.Integer).Value
-				vm.push(&object.Integer{Value: leftValue + rightValue})
-			default:
-				return fmt.Errorf("unknown operator: %s %b %s", left.Type(), code.OpAdd, right.Type())
-			}
+		case code.OpAdd, code.OpSub, code.OpMul, code.OpDiv:
+			vm.executeBinaryOperation(op)
 		case code.OpPop:
 			vm.pop()
 		}
+	}
+
+	return nil
+}
+
+func (vm *VM) executeBinaryOperation(op code.Opcode) error {
+	right := vm.pop()
+	left := vm.pop()
+
+	switch {
+	case right.Type() != left.Type():
+		return fmt.Errorf("type mismatch: %s %s", left.Type(), right.Type())
+	case right.Type() == object.INTEGER_OBJ && left.Type() == object.INTEGER_OBJ:
+		err := vm.executeBinaryIntegerOperation(op, left, right)
+		if err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unknown operator: %s %b %s", left.Type(), code.OpAdd, right.Type())
+	}
+
+	return nil
+}
+
+func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.Object) error {
+	leftValue := left.(*object.Integer).Value
+	rightValue := right.(*object.Integer).Value
+
+	switch op {
+	case code.OpAdd:
+		vm.push(&object.Integer{Value: leftValue + rightValue})
+	case code.OpSub:
+		vm.push(&object.Integer{Value: leftValue - rightValue})
+	case code.OpMul:
+		vm.push(&object.Integer{Value: leftValue * rightValue})
+	case code.OpDiv:
+		vm.push(&object.Integer{Value: leftValue / rightValue})
+	default:
+		return fmt.Errorf("unknown integer operator: %d", op)
 	}
 
 	return nil
