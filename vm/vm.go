@@ -55,7 +55,8 @@ func (vm *VM) Run() error {
 			default:
 				return fmt.Errorf("unknown operator: %s %b %s", left.Type(), code.OpAdd, right.Type())
 			}
-
+		case code.OpPop:
+			vm.pop()
 		}
 	}
 
@@ -79,9 +80,6 @@ func (vm *VM) pop() object.Object {
 	return o
 }
 
-func (vm *VM) StackTop() object.Object {
-	if vm.sp == 0 {
-		return nil
-	}
-	return vm.stack[vm.sp-1]
+func (vm *VM) LastPoppedStackElem() object.Object {
+	return vm.stack[vm.sp]
 }

@@ -10,6 +10,12 @@ type Opcode byte
 
 type Instructions []byte
 
+const (
+	OpConstant Opcode = iota
+	OpAdd
+	OpPop
+)
+
 func (ins Instructions) String() string {
 	var out bytes.Buffer
 
@@ -50,11 +56,6 @@ func (ins Instructions) fmtInstruction(def *Definition, operands []int) string {
 	return out.String()
 }
 
-const (
-	OpConstant Opcode = iota
-	OpAdd
-)
-
 type Definition struct {
 	Name string
 	// contains number of bytes each operand takes
@@ -64,6 +65,7 @@ type Definition struct {
 var definitions = map[Opcode]*Definition{
 	OpConstant: {"OpConstant", []int{2}}, // single operand 2 bytes width => max value uint16
 	OpAdd:      {"OpAdd", []int{}},
+	OpPop:      {"OpPop", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
