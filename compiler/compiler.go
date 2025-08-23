@@ -9,14 +9,18 @@ import (
 )
 
 type Compiler struct {
-	instructions code.Instructions
-	constants    []object.Object
+	instructions        code.Instructions
+	constants           []object.Object
+	lastInstruction     EmittedInstruction
+	previousInstruction EmittedInstruction
 }
 
 func New() *Compiler {
 	return &Compiler{
-		instructions: code.Instructions{},
-		constants:    []object.Object{},
+		instructions:        code.Instructions{},
+		constants:           []object.Object{},
+		lastInstruction:     EmittedInstruction{},
+		previousInstruction: EmittedInstruction{},
 	}
 }
 
@@ -100,6 +104,69 @@ func (c *Compiler) Compile(node ast.Node) error {
 		default:
 			return fmt.Errorf("unknown operator %s", node.Operator)
 		}
+	case *ast.IfExpression:
+		err := c.Compile(node.Condition)
+		if err != nil {
+			return err
+		}
+
+		// our compiler traverses the AST only once and called 'single-pass' compiler
+		// we apply 'back-patching' - we set placeholder jump opcode with garbage value
+		// and, once consequence is compiled and we know at what position we need to jump
+		// we do 'back-patcing' and update instruction operand value
+		jumpNotTruthyPos := c.emit(code.OpJumpNotTruthy, 9999)
+
+		err = c.Compile(node.Consequence)
+		if err != nil {
+			return err
+		}
+
+		// we do want the consequence and the alternative of a conditional to leave a value on the stack
+		// to make the code below work
+		// let result = if (5 > 3) { 5 } else { 3 };
+		// The value produced by the consequence would be popped off the stack,
+		// the expression wouldn’t evaluate to anything, and the let statement would end up
+		// without a value on the right side of its =
+		if c.lastInstruction.Opcode == code.OpPop {
+			c.removeLastInstruction()
+		}
+
+		// update 'code.OpJumpNotTruthy' instructions with correct jump offset
+		jumpPos := c.emit(code.OpJump, 9999)
+
+		afterConsequencePos := len(c.instructions)
+		c.changeOperand(jumpNotTruthyPos, afterConsequencePos)
+
+		// alternative
+		// the steps are exactly the same as for consequence flattening
+		if node.Alternative == nil {
+			// expression that produces nothing returns null
+			// so if there is not alternative we emit null
+			c.emit(code.OpNull)
+		} else {
+			// compile alternative block
+			err = c.Compile(node.Alternative)
+			if err != nil {
+				return err
+			}
+
+			// pop lastInstruction if its OpPop
+			if c.lastInstruction.Opcode == code.OpPop {
+				c.removeLastInstruction()
+			}
+		}
+
+		// change 'code.OpJump' position with correct jump offset
+		afterAlternativePos := len(c.instructions)
+		c.changeOperand(jumpPos, afterAlternativePos)
+
+	case *ast.BlockStatement:
+		for _, exp := range node.Statements {
+			err := c.Compile(exp)
+			if err != nil {
+				return err
+			}
+		}
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))
@@ -124,6 +191,9 @@ func (c *Compiler) addConstant(obj object.Object) int {
 func (c *Compiler) emit(op code.Opcode, operands ...int) int {
 	ins := code.Make(op, operands...)
 	pos := c.addInstruction(ins)
+
+	c.setLastInstruction(op, pos)
+
 	return pos
 }
 
@@ -133,6 +203,30 @@ func (c *Compiler) addInstruction(ins code.Instructions) int {
 	insPos := len(c.instructions)
 	c.instructions = append(c.instructions, ins...)
 	return insPos
+}
+
+func (c *Compiler) setLastInstruction(op code.Opcode, pos int) {
+	c.previousInstruction = c.lastInstruction
+	c.lastInstruction = EmittedInstruction{
+		Opcode:   op,
+		Position: pos,
+	}
+}
+
+func (c *Compiler) removeLastInstruction() {
+	c.instructions = c.instructions[:c.lastInstruction.Position]
+	c.lastInstruction = c.previousInstruction
+}
+
+func (c *Compiler) changeOperand(opPos int, operand int) {
+	op := code.Make(code.Opcode(c.instructions[opPos]), operand)
+	c.replaceInstruction(opPos, op)
+}
+
+func (c *Compiler) replaceInstruction(pos int, newInstruction []byte) {
+	for i := 0; i < len(newInstruction); i++ {
+		c.instructions[pos+i] = newInstruction[i]
+	}
 }
 
 func (c *Compiler) Bytecode() *Bytecode {
@@ -145,4 +239,9 @@ func (c *Compiler) Bytecode() *Bytecode {
 type Bytecode struct {
 	Instructions code.Instructions
 	Constants    []object.Object
+}
+
+type EmittedInstruction struct {
+	Opcode   code.Opcode
+	Position int
 }

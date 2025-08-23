@@ -6,10 +6,6 @@ import (
 	"strconv"
 )
 
-type Opcode byte
-
-type Instructions []byte
-
 const (
 	OpConstant Opcode = iota
 	OpAdd
@@ -26,7 +22,14 @@ const (
 	OpGreaterThan
 	OpMinus
 	OpBang
+	OpJump
+	OpJumpNotTruthy
+	OpNull
 )
+
+type Opcode byte
+
+type Instructions []byte
 
 func (ins Instructions) String() string {
 	var out bytes.Buffer
@@ -75,19 +78,22 @@ type Definition struct {
 }
 
 var definitions = map[Opcode]*Definition{
-	OpConstant:    {"OpConstant", []int{2}}, // single operand 2 bytes width => max value uint16
-	OpAdd:         {"OpAdd", []int{}},
-	OpSub:         {"OpSub", []int{}},
-	OpMul:         {"OpMul", []int{}},
-	OpDiv:         {"OpDiv", []int{}},
-	OpPop:         {"OpPop", []int{}},
-	OpTrue:        {"OpTrue", []int{}},
-	OpFalse:       {"OpFalse", []int{}},
-	OpEqual:       {"OpEqual", []int{}},
-	OpNotEqual:    {"OpNotEqual", []int{}},
-	OpGreaterThan: {"OpGreaterThan", []int{}},
-	OpMinus:       {"OpMinus", []int{}},
-	OpBang:        {"OpBang", []int{}},
+	OpConstant:      {"OpConstant", []int{2}}, // single operand 2 bytes width => max value uint16
+	OpAdd:           {"OpAdd", []int{}},
+	OpSub:           {"OpSub", []int{}},
+	OpMul:           {"OpMul", []int{}},
+	OpDiv:           {"OpDiv", []int{}},
+	OpPop:           {"OpPop", []int{}},
+	OpTrue:          {"OpTrue", []int{}},
+	OpFalse:         {"OpFalse", []int{}},
+	OpEqual:         {"OpEqual", []int{}},
+	OpNotEqual:      {"OpNotEqual", []int{}},
+	OpGreaterThan:   {"OpGreaterThan", []int{}},
+	OpMinus:         {"OpMinus", []int{}},
+	OpBang:          {"OpBang", []int{}},
+	OpJump:          {"OpJump", []int{2}},
+	OpJumpNotTruthy: {"OpJumpNotTruthy", []int{2}},
+	OpNull: {"OpNull", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
