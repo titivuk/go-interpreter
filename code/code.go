@@ -25,6 +25,8 @@ const (
 	OpJump
 	OpJumpNotTruthy
 	OpNull
+	OpSetGlobal
+	OpGetGlobal
 )
 
 type Opcode byte
@@ -93,7 +95,9 @@ var definitions = map[Opcode]*Definition{
 	OpBang:          {"OpBang", []int{}},
 	OpJump:          {"OpJump", []int{2}},
 	OpJumpNotTruthy: {"OpJumpNotTruthy", []int{2}},
-	OpNull: {"OpNull", []int{}},
+	OpNull:          {"OpNull", []int{}},
+	OpSetGlobal:     {"OpSetGlobal", []int{2}},
+	OpGetGlobal:     {"OpGetGlobal", []int{2}},
 }
 
 func Lookup(op byte) (*Definition, error) {

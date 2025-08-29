@@ -7,6 +7,7 @@ import (
 
 	"github.com/titivuk/go-interpreter/compiler"
 	"github.com/titivuk/go-interpreter/lexer"
+	"github.com/titivuk/go-interpreter/object"
 	"github.com/titivuk/go-interpreter/parser"
 	"github.com/titivuk/go-interpreter/vm"
 )
@@ -33,6 +34,9 @@ func Start(in io.Reader, out io.Writer) {
 	// The client may instead provide a custom split function.
 	scanner := bufio.NewScanner(in)
 	// env := object.NewEnvironment()
+	symbolTable := compiler.NewSymbolTable()
+	constants := []object.Object{}
+	globals := make([]object.Object, vm.GlobalsSize)
 
 	for {
 		fmt.Fprint(out, PROMT)
@@ -52,14 +56,17 @@ func Start(in io.Reader, out io.Writer) {
 			continue
 		}
 
-		comp := compiler.New()
+		comp := compiler.NewWithState(constants, symbolTable)
 		err := comp.Compile(program)
 		if err != nil {
 			fmt.Fprintf(out, "Woops! Compilation failed:\n %s\n", err)
 			continue
 		}
 
-		machine := vm.New(comp.Bytecode())
+		bytecode := comp.Bytecode()
+		constants = bytecode.Constants
+
+		machine := vm.NewWithGlobalsStore(bytecode, globals)
 		err = machine.Run()
 		if err != nil {
 			fmt.Fprintf(out, "Woops! Executing bytecode failed:\n %s\n", err)

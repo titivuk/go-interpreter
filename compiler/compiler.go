@@ -13,6 +13,7 @@ type Compiler struct {
 	constants           []object.Object
 	lastInstruction     EmittedInstruction
 	previousInstruction EmittedInstruction
+	symbolTable         *SymbolTable
 }
 
 func New() *Compiler {
@@ -21,7 +22,16 @@ func New() *Compiler {
 		constants:           []object.Object{},
 		lastInstruction:     EmittedInstruction{},
 		previousInstruction: EmittedInstruction{},
+		symbolTable:         NewSymbolTable(),
 	}
+}
+
+func NewWithState(constants []object.Object, symbolTable *SymbolTable) *Compiler {
+	c := New()
+	c.constants = constants
+	c.symbolTable = symbolTable
+
+	return c
 }
 
 func (c *Compiler) Compile(node ast.Node) error {
@@ -159,7 +169,6 @@ func (c *Compiler) Compile(node ast.Node) error {
 		// change 'code.OpJump' position with correct jump offset
 		afterAlternativePos := len(c.instructions)
 		c.changeOperand(jumpPos, afterAlternativePos)
-
 	case *ast.BlockStatement:
 		for _, exp := range node.Statements {
 			err := c.Compile(exp)
@@ -167,6 +176,21 @@ func (c *Compiler) Compile(node ast.Node) error {
 				return err
 			}
 		}
+
+	case *ast.LetStatement:
+		err := c.Compile(node.Value)
+		if err != nil {
+			return err
+		}
+
+		s := c.symbolTable.Define(node.Name.Value)
+		c.emit(code.OpSetGlobal, s.Index)
+	case *ast.Identifier:
+		s, ok := c.symbolTable.Resolve(node.Value)
+		if !ok {
+			return fmt.Errorf("undefined variable %s", node.Value)
+		}
+		c.emit(code.OpGetGlobal, s.Index)
 	case *ast.IntegerLiteral:
 		integer := &object.Integer{Value: node.Value}
 		c.emit(code.OpConstant, c.addConstant(integer))

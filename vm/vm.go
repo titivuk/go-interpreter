@@ -9,6 +9,7 @@ import (
 )
 
 const StackSize = 2048
+const GlobalsSize = 65536
 
 var (
 	True  = &object.Boolean{Value: true}
@@ -19,19 +20,25 @@ var (
 type VM struct {
 	constants    []object.Object
 	instructions code.Instructions
-
-	stack []object.Object
-	sp    int // always points to the next value. Top of the stack is stack[sp-1]
+	globals      []object.Object
+	stack        []object.Object
+	sp           int // always points to the next value. Top of the stack is stack[sp-1]
 }
 
 func New(bytecode *compiler.Bytecode) *VM {
 	return &VM{
 		constants:    bytecode.Constants,
 		instructions: bytecode.Instructions,
-
-		stack: make([]object.Object, StackSize),
-		sp:    0,
+		globals:      make([]object.Object, GlobalsSize),
+		stack:        make([]object.Object, StackSize),
+		sp:           0,
 	}
+}
+
+func NewWithGlobalsStore(bytecode *compiler.Bytecode, globals []object.Object) *VM {
+	vm := New(bytecode)
+	vm.globals = globals
+	return vm
 }
 
 func (vm *VM) Run() error {
@@ -93,6 +100,18 @@ func (vm *VM) Run() error {
 			}
 		case code.OpNull:
 			err := vm.push(Null)
+			if err != nil {
+				return err
+			}
+		case code.OpSetGlobal:
+			idx := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+			vm.globals[idx] = vm.pop()
+		case code.OpGetGlobal:
+			idx := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			err := vm.push(vm.globals[idx])
 			if err != nil {
 				return err
 			}
