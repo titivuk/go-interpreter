@@ -115,6 +115,54 @@ func (vm *VM) Run() error {
 			if err != nil {
 				return err
 			}
+		case code.OpArray:
+			len := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			elements := make([]object.Object, len)
+			for i := 0; i < len; i++ {
+				elements[len-1-i] = vm.pop()
+			}
+			arrayObj := &object.Array{Elements: elements}
+
+			err := vm.push(arrayObj)
+			if err != nil {
+				return err
+			}
+		case code.OpHash:
+			len := int(code.ReadUint16(vm.instructions[ip+1:]))
+			ip += 2
+
+			pairs := make(map[object.HashKey]object.HashPair)
+			for i := 0; i < len/2; i++ {
+				value := vm.pop()
+				key := vm.pop()
+
+				objPair := object.HashPair{Key: key, Value: value}
+
+				hashKey, ok := key.(object.Hashable)
+				if !ok {
+					return fmt.Errorf("unusable as hash key: %s", key.Type())
+				}
+
+				pairs[hashKey.HashKey()] = objPair
+			}
+
+			hashObj := &object.Hash{Pairs: pairs}
+
+			err := vm.push(hashObj)
+			if err != nil {
+				return err
+			}
+
+		case code.OpIndex:
+			index := vm.pop()
+			left := vm.pop()
+
+			err := vm.executeIndexExpression(left, index)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -129,20 +177,14 @@ func (vm *VM) executeBinaryOperation(op code.Opcode) error {
 	case right.Type() != left.Type():
 		return fmt.Errorf("type mismatch: %s %s", left.Type(), right.Type())
 	case right.Type() == object.INTEGER_OBJ && left.Type() == object.INTEGER_OBJ:
-		err := vm.executeBinaryIntegerOperation(op, left, right)
-		if err != nil {
-			return err
-		}
+		return vm.executeBinaryIntegerOperation(op, left, right)
 	case right.Type() == object.BOOLEAN_OBJ && left.Type() == object.BOOLEAN_OBJ:
-		err := vm.executeBinaryBooleanOperation(op, left, right)
-		if err != nil {
-			return err
-		}
+		return vm.executeBinaryBooleanOperation(op, left, right)
+	case right.Type() == object.STRING_OBJ && left.Type() == object.STRING_OBJ:
+		return vm.executeBinaryStringOperation(op, left, right)
 	default:
 		return fmt.Errorf("unknown operator: %s %b %s", left.Type(), code.OpAdd, right.Type())
 	}
-
-	return nil
 }
 
 func (vm *VM) executeBinaryIntegerOperation(op code.Opcode, left, right object.Object) error {
@@ -199,6 +241,43 @@ func (vm *VM) executeBinaryBooleanOperation(op code.Opcode, left, right object.O
 	return nil
 }
 
+func (vm *VM) executeBinaryStringOperation(op code.Opcode, left, right object.Object) error {
+	leftValue := left.(*object.String).Value
+	rightValue := right.(*object.String).Value
+
+	switch op {
+	case code.OpAdd:
+		vm.push(&object.String{Value: leftValue + rightValue})
+	case code.OpEqual:
+		if leftValue == rightValue {
+			vm.push(True)
+		} else {
+			vm.push(False)
+		}
+	case code.OpNotEqual:
+		if leftValue != rightValue {
+			vm.push(True)
+		} else {
+			vm.push(False)
+		}
+	default:
+		return fmt.Errorf("unknown string operator: %d", op)
+	}
+
+	return nil
+}
+
+func (vm *VM) executeIndexExpression(left, index object.Object) error {
+	switch {
+	case left.Type() == object.ARRAY_OBJ && index.Type() == object.INTEGER_OBJ:
+		return vm.executeArrayIndex(left, index)
+	case left.Type() == object.HASH_OBJ:
+		return vm.executeHashIndex(left, index)
+	default:
+		return fmt.Errorf("index operator not supported: %s", left.Type())
+	}
+}
+
 func (vm *VM) executeBangOperator() error {
 	operand := vm.pop()
 	switch operand {
@@ -221,6 +300,29 @@ func (vm *VM) executeMinusOperator() error {
 
 	value := operand.(*object.Integer).Value
 	return vm.push(&object.Integer{Value: -value})
+}
+
+func (vm *VM) executeArrayIndex(array, index object.Object) error {
+	arrayObject := array.(*object.Array)
+	i := index.(*object.Integer).Value
+	max := int64(len(arrayObject.Elements) - 1)
+	if i < 0 || i > max {
+		return vm.push(Null)
+	}
+	return vm.push(arrayObject.Elements[i])
+}
+
+func (vm *VM) executeHashIndex(hash, index object.Object) error {
+	hashObject := hash.(*object.Hash)
+	key, ok := index.(object.Hashable)
+	if !ok {
+		return fmt.Errorf("unusable as hash key: %s", index.Type())
+	}
+	pair, ok := hashObject.Pairs[key.HashKey()]
+	if !ok {
+		return vm.push(Null)
+	}
+	return vm.push(pair.Value)
 }
 
 func (vm *VM) push(obj object.Object) error {
