@@ -30,6 +30,9 @@ const (
 	OpArray
 	OpHash
 	OpIndex
+	OpCall
+	OpReturnValue // return from the current function value sitting on top of the stack
+	OpReturn      // return from the current function, but there is nothing to return
 )
 
 type Opcode byte
@@ -104,6 +107,9 @@ var definitions = map[Opcode]*Definition{
 	OpArray:         {"OpArray", []int{2}}, // array with 65k elements
 	OpHash:          {"OpHash", []int{2}},  // hash with (65k/2) elements
 	OpIndex:         {"OpIndex", []int{}},
+	OpCall:          {"OpCall", []int{}},
+	OpReturnValue:   {"OpReturnValue", []int{}},
+	OpReturn:        {"OpReturn", []int{}},
 }
 
 func Lookup(op byte) (*Definition, error) {
